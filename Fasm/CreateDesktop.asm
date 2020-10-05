@@ -29,6 +29,10 @@ section '.text' code readable executable
       or eax, MOD_ALT
       stdcall [RegisterHotKey], NULL, 1, eax, 0x51
 
+      mov eax, MOD_CONTROL
+      or eax, MOD_ALT
+      stdcall [RegisterHotKey], NULL, 1, eax, 0x5A
+
     .loop:
       push 0
       push 0
@@ -43,10 +47,12 @@ section '.text' code readable executable
       jnz .loop
       mov eax, [message.lParam]
       shr eax, 16
-      cmp ax, 0x45
+      cmp ax, 0x45     ; switch to second desktop CTRL + ALT + E
       jz .hidden
-      cmp ax, 0x51
+      cmp ax, 0x51     ; switch to original desktop CTRL + ALT + Q
       jz .original
+      cmp ax, 0x5A     ; switches to original desktop and ends application CTRL + ALT + Z
+      jz .exit
 
     .hidden:
       push [second_desktop]
@@ -57,18 +63,14 @@ section '.text' code readable executable
       call [SwitchDesktop]
       jmp .loop
     .exit:
+      push [original_desktop]
+      call [SwitchDesktop]
+      push [original_desktop]
+      call [SetThreadDesktop]
+
       call [getchar]
       push 0
       call [ExitProcess]
-
-
-proc MsgBx
-  locals
-        Pip db "Hey",0
-  endl
-  stdcall [MessageBox], NULL, addr Pip, addr Pip, MB_OK
-  ret
-endp
 
 proc CreateAnotherDesktop Name, Path
  locals
@@ -130,13 +132,7 @@ proc CreateProc Path
        process_info PROCESS_INFORMATION ?
  endl
 
- ;push sizeof.STARTUPINFO
- ;lea eax, [startup_info]
- ;push eax
- ;call [memset]
-
  mov [startup_info.cb], sizeof.STARTUPINFO
- ;lea eax, [desktop_name]
  mov [startup_info.lpDesktop], desktop_name
 
  stdcall [CreateProcess], [Path], 0, 0, 0, 0, 0, 0, 0, addr startup_info, addr process_info
@@ -182,8 +178,7 @@ section '.idata' import readable
         MessageBox,       'MessageBoxA'
 
  import msvcrt,\
-        getchar,        'getchar',\
-        memset,         'memset'
+        getchar,        'getchar'
 
 
 
