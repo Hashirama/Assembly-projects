@@ -15,20 +15,19 @@ section '.text' code readable executable
       call [GetThreadDesktop]
       mov [original_desktop], eax
 
+      mov eax, MOD_CONTROL
+      or eax, MOD_ALT
+      stdcall [RegisterHotKey], NULL, 1, eax, 0x45
+
       push [second_desktop]
       call [SetThreadDesktop]
 
-      push [second_desktop]
-      call [SwitchDesktop]
+      ;push [second_desktop]
+      ;call [SwitchDesktop]
 
-      push 0x45
       mov eax, MOD_CONTROL
       or eax, MOD_ALT
-      ;or eax, MOD_NOREPEAT
-      push eax
-      push 1
-      push NULL
-      call [RegisterHotKey]
+      stdcall [RegisterHotKey], NULL, 1, eax, 0x51
 
     .loop:
       push 0
@@ -42,9 +41,21 @@ section '.text' code readable executable
 
       cmp [message.message], WM_HOTKEY
       jnz .loop
+      mov eax, [message.lParam]
+      shr eax, 16
+      cmp ax, 0x45
+      jz .hidden
+      cmp ax, 0x51
+      jz .original
 
+    .hidden:
+      push [second_desktop]
+      call [SwitchDesktop]
+      jmp .loop
+    .original:
       push [original_desktop]
       call [SwitchDesktop]
+      jmp .loop
     .exit:
       call [getchar]
       push 0
@@ -129,10 +140,6 @@ proc CreateProc Path
  mov [startup_info.lpDesktop], desktop_name
 
  stdcall [CreateProcess], [Path], 0, 0, 0, 0, 0, 0, 0, addr startup_info, addr process_info
- cmp eax, 0
- jz .fail
- jmp .exit
-
 .exit:
  mov esp, ebp
  pop ebp
